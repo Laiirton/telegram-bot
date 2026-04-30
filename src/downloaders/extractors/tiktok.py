@@ -6,7 +6,7 @@ import yt_dlp
 
 from src.downloaders.base import BaseExtractor
 from src.core.download_job import DownloadJob
-from src.core.result import DownloadResult, DownloadSuccess, DownloadError
+from src.core.result import DownloadResult, DownloadSuccess, DownloadError, VideoMetadata, VideoQuality
 from src.config.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -29,18 +29,85 @@ class TikTokExtractor(BaseExtractor):
 
     async def extract(self, job: DownloadJob) -> DownloadResult:
         try:
-            return await self._download(job.url)
+            quality = getattr(job, 'quality', None)
+            return await self._download(job.url, quality)
         except Exception as exc:
             logger.exception("TikTok download failed")
             return DownloadError(reason=str(exc))
 
-    async def _download(self, url: str) -> DownloadResult:
+    async def get_metadata(self, url: str) -> VideoMetadata:
+        """Extract video metadata without downloading."""
+        ydl_opts = {
+            "quiet": True,
+            "no_warnings": True,
+            "socket_timeout": settings.download_timeout,
+            "listformats": True,
+        }
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            
+        title = info.get("title", "Video")
+        thumbnail = info.get("thumbnail")
+        
+        # Extract available qualities
+        qualities = []
+        seen_qualities = set()
+        
+        for fmt in info.get("formats", []):
+            # Skip audio-only formats
+            if fmt.get("vcodec") == "none":
+                continue
+                
+            height = fmt.get("height")
+            width = fmt.get("width")
+            ext = fmt.get("ext", "mp4")
+            filesize = fmt.get("filesize")
+            filesize_mb = filesize / (1024 * 1024) if filesize else None
+            
+            # Create quality label
+            if height:
+                quality_label = f"{height}p"
+            else:
+                quality_label = "Unknown"
+            
+            # Skip duplicates (same height)
+            if quality_label in seen_qualities:
+                continue
+            seen_qualities.add(quality_label)
+            
+            # Skip if too large
+            if filesize_mb and filesize_mb > settings.max_file_size_mb:
+                continue
+            
+            quality = VideoQuality(
+                format_id=fmt.get("format_id", ""),
+                quality_label=quality_label,
+                ext=ext,
+                filesize_mb=round(filesize_mb, 2) if filesize_mb else None,
+                height=height,
+                width=width,
+            )
+            qualities.append(quality)
+        
+        # Sort by height (descending)
+        qualities.sort(key=lambda q: q.height or 0, reverse=True)
+        
+        return VideoMetadata(title=title, qualities=qualities, thumbnail=thumbnail)
+
+    async def _download(self, url: str, quality: VideoQuality | None = None) -> DownloadResult:
         # Use mkdtemp so the directory persists until the callback cleans it up
         tmpdir = tempfile.mkdtemp(prefix="tt_dl_")
         try:
+            # Build format string based on quality selection
+            if quality:
+                format_str = quality.format_id
+            else:
+                format_str = "best[filesize<=" + str(settings.max_file_size_mb) + "M]/best"
+            
             ydl_opts = {
                 "outtmpl": os.path.join(tmpdir, "%(title)s.%(ext)s"),
-                "format": "best[filesize<=" + str(settings.max_file_size_mb) + "M]/best",
+                "format": format_str,
                 "quiet": True,
                 "no_warnings": True,
                 "socket_timeout": settings.download_timeout,
