@@ -12,6 +12,9 @@ class FakeExtractor(BaseExtractor):
     async def extract(self, job: DownloadJob) -> DownloadSuccess:
         return DownloadSuccess(path="/fake", title="Fake")
 
+    async def get_metadata(self, url: str):
+        return None
+
 
 def test_registry_registration():
     reg = ExtractorRegistry()

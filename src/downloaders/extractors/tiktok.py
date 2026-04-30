@@ -50,35 +50,36 @@ class TikTokExtractor(BaseExtractor):
         title = info.get("title", "Video")
         thumbnail = info.get("thumbnail")
         
-        # Extract available qualities
-        qualities = []
-        seen_qualities = set()
+        # Extract available qualities: pick best filesize per height, filter watermarks
+        qualities_dict = {}  # height (int) -> VideoQuality (best filesize)
         
         for fmt in info.get("formats", []):
             # Skip audio-only formats
             if fmt.get("vcodec") == "none":
                 continue
-                
+            
+            # Skip watermarked formats (TikTok watermark)
+            format_note = (fmt.get("format_note") or "").lower()
+            if "watermark" in format_note or "wm" in format_note:
+                continue
+            if fmt.get("has_watermark"):
+                continue
+            
             height = fmt.get("height")
+            # Skip formats without height (unknown resolution)
+            if height is None:
+                continue
+            
             width = fmt.get("width")
             ext = fmt.get("ext", "mp4")
             filesize = fmt.get("filesize")
             filesize_mb = filesize / (1024 * 1024) if filesize else None
             
-            # Create quality label
-            if height:
-                quality_label = f"{height}p"
-            else:
-                quality_label = "Unknown"
-            
-            # Skip duplicates (same height)
-            if quality_label in seen_qualities:
-                continue
-            seen_qualities.add(quality_label)
-            
             # Skip if too large
             if filesize_mb and filesize_mb > settings.max_file_size_mb:
                 continue
+            
+            quality_label = f"{height}p"
             
             quality = VideoQuality(
                 format_id=fmt.get("format_id", ""),
@@ -88,9 +89,17 @@ class TikTokExtractor(BaseExtractor):
                 height=height,
                 width=width,
             )
-            qualities.append(quality)
+            
+            # Keep the best (largest filesize) for this height
+            existing = qualities_dict.get(height)
+            if existing is None or (
+                quality.filesize_mb is not None and existing.filesize_mb is not None and
+                quality.filesize_mb > existing.filesize_mb
+            ):
+                qualities_dict[height] = quality
         
-        # Sort by height (descending)
+        qualities = list(qualities_dict.values())
+        # Sort by height descending
         qualities.sort(key=lambda q: q.height or 0, reverse=True)
         
         return VideoMetadata(title=title, qualities=qualities, thumbnail=thumbnail)

@@ -4,6 +4,7 @@ from src.config.settings import settings
 from src.core.download_orchestrator import DownloadOrchestrator
 from src.downloaders.registry import ExtractorRegistry
 from src.downloaders.extractors.tiktok import TikTokExtractor
+from src.downloaders.extractors.x_com import XExtractor
 from src.bot.handlers.start import start
 from src.bot.handlers.download import handle_message
 from src.bot.handlers.commands import help_command, about_command, status_command, cancel_command
@@ -14,6 +15,7 @@ def build_application() -> tuple[Application, DownloadOrchestrator]:
     """Build and configure the Telegram bot application."""
     registry = ExtractorRegistry()
     registry.register(TikTokExtractor)
+    registry.register(XExtractor)
 
     # Future extractors: YouTubeExtractor, InstagramExtractor, etc.
     # registry.register(YouTubeExtractor)

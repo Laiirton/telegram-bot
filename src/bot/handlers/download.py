@@ -5,7 +5,7 @@ from telegram.ext import ContextTypes
 
 from src.core.download_orchestrator import DownloadOrchestrator
 from src.core.download_job import DownloadJob
-from src.utils.url_validator import find_tiktok_urls
+from src.utils.url_validator import find_supported_urls
 from src.downloaders.registry import ExtractorRegistry
 from src.bot.handlers.quality import show_quality_options
 
@@ -17,12 +17,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if not update.message or not update.message.text:
         return
 
-    urls = find_tiktok_urls(update.message.text)
+    urls = find_supported_urls(update.message.text)
     if not urls:
         await update.message.reply_text(
             "🔍 *Não encontrei nenhum link válido nessa mensagem.*\n\n"
             "Por favor, envie um link de vídeo suportado:\n"
-            "• TikTok: `https://vm.tiktok.com/...` ou `https://www.tiktok.com/@usuario/video/...`\n\n"
+            "• TikTok: `https://vm.tiktok.com/...` ou `https://www.tiktok.com/@usuario/video/...`\n"
+            "• X.com: `https://x.com/usuario/status/...` ou `https://twitter.com/usuario/status/...`\n\n"
             "_Em breve adicionarei suporte para mais plataformas!_",
             parse_mode="Markdown",
         )

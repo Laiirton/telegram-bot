@@ -1,5 +1,5 @@
 import pytest
-from src.utils.url_validator import extract_domain, find_urls, find_tiktok_urls
+from src.utils.url_validator import extract_domain, find_supported_urls, find_tiktok_urls
 
 
 def test_extract_domain_from_tiktok():
@@ -14,13 +14,13 @@ def test_extract_domain_invalid():
 
 def test_find_urls_finds_multiple():
     text = "Check https://vm.tiktok.com/abc and https://youtube.com/shorts/def"
-    urls = find_urls(text)
-    assert len(urls) == 2
+    urls = find_supported_urls(text)
+    assert len(urls) == 1
     assert urls[0] == "https://vm.tiktok.com/abc"
 
 
 def test_find_urls_empty():
-    assert find_urls("no urls here") == []
+    assert find_supported_urls("no urls here") == []
 
 
 def test_find_tiktok_urls_finds_variants():
