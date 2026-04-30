@@ -10,3 +10,5 @@ build/
 .pytest_cache/
 .mypy_cache/
 downloads/
+/venv_wsl
+src/config/cookies/
