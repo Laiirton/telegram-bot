@@ -6,6 +6,8 @@ from src.downloaders.registry import ExtractorRegistry
 from src.downloaders.extractors.tiktok import TikTokExtractor
 from src.bot.handlers.start import start
 from src.bot.handlers.download import handle_message
+from src.bot.handlers.commands import help_command, about_command, status_command, cancel_command
+from src.bot.handlers.callbacks import register_callbacks
 
 
 def build_application() -> tuple[Application, DownloadOrchestrator]:
@@ -18,23 +20,21 @@ def build_application() -> tuple[Application, DownloadOrchestrator]:
 
     orch = DownloadOrchestrator(registry)
 
-    async def _post_init(app: Application) -> None:
-        orch.start()
-
-    async def _post_stop(app: Application) -> None:
-        orch.stop()
-
-    app = (
-        Application.builder()
-        .token(settings.telegram_bot_token)
-        .post_init(_post_init)
-        .post_stop(_post_stop)
-        .build()
-    )
+    app = Application.builder().token(settings.telegram_bot_token).build()
     app.bot_data["orchestrator"] = orch
     app.bot_data["registry"] = registry
 
+    # Commands
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(CommandHandler("status", status_command))
+    app.add_handler(CommandHandler("cancel", cancel_command))
+    app.add_handler(CommandHandler("about", about_command))
+
+    # Messages
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
+    # Callbacks (inline keyboards)
+    register_callbacks(app)
 
     return app, orch
