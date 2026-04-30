@@ -42,3 +42,16 @@ async def test_tiktok_extract_failure(extractor):
         result = await extractor.extract(job)
         assert isinstance(result, DownloadError)
         assert "Download failed" in result.reason
+
+
+def test_tiktok_domains():
+    domains = TikTokExtractor.DOMAINS
+    expected = {
+        "vm.tiktok.com",
+        "vt.tiktok.com",
+        "tiktok.com",
+        "www.tiktok.com",
+        "m.tiktok.com",
+        "musical.ly",
+    }
+    assert domains == expected

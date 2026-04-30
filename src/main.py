@@ -1,5 +1,6 @@
 import logging
 import os
+import shutil
 
 from telegram.error import TelegramError
 
@@ -27,6 +28,14 @@ async def _on_download_complete(
                     reply_to_message_id=job.message_id,
                 )
             logger.info("Sent video to chat_id=%s", job.chat_id)
+            # Clean up temp file and directory
+            try:
+                os.remove(result.path)
+                tmpdir = os.path.dirname(result.path)
+                shutil.rmtree(tmpdir, ignore_errors=True)
+                logger.info("Cleaned up download: %s", result.path)
+            except OSError as exc:
+                logger.warning("Failed to clean up download: %s", exc)
         elif isinstance(result, DownloadError):
             await app.bot.send_message(
                 chat_id=job.chat_id,
@@ -45,10 +54,7 @@ def main() -> None:
 
     configure_logging()
 
-    app = build_application()
-
-    # Bind application instance into the callback
-    orch = app.bot_data["orchestrator"]
+    app, orch = build_application()
 
     async def bound_callback(job: DownloadJob, result) -> None:
         await _on_download_complete(app, job, result)
